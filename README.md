@@ -136,11 +136,11 @@ The AE model directly gives predictions of absorption and emission in nm.
 The PE model plqy and epsilon need to be converted using the following equations.
 
 $$
-PLQY(\%) = \frac{PLQY_{pred}}{100}\\
+PLQY(%) = \frac{PLQY_{pred}}{100}\\
 $$
 
 $$
-Epsilon(M^{-1}cm^{-1}) = 10^{\frac{\Epsilon_{pred}}{100}}\\
+Epsilon(M^{-1}cm^{-1}) = 10^{\frac{Epsilon_{pred}}{100}}\\
 $$
 
 
