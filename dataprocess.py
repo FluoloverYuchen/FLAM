@@ -1288,15 +1288,14 @@ def filter_scaffold(scf): # 筛选骨架
         return False #其他情况都无效，排除
     return [smi for smi in scf if is_valid(smi)]
 
-def get_ae_data(path='data/ZJUFluoDB.csv', smp=0):
+def get_ae_data(path='data/FluoDB.csv', smp=0):
     print('Loading ', path)
     df = pd.read_csv(path)
     e_name = 'emission/nm'
     a_name = 'absorption/nm'
     
     print('Processing ',len(df), ' data.')
-    # filter data
-#     df = df[~(df.source =='ChemDataExtractor')]
+
     df = df[df[e_name]-df[a_name]>10]
     df['smiles'] = remove_ion(df.smiles)
     df = df[df.smiles.str.len()>0]
@@ -1306,61 +1305,75 @@ def get_ae_data(path='data/ZJUFluoDB.csv', smp=0):
     
     print(len(df), ' after process, Split data and make dataset.')
     
-#     preserve 10% as test set
-    tnum = int(len(df)*0.1)
+#     preserve 20% as test set
+    tnum = int(len(df)*0.2)
+    
+
+    sc_test_df = df[df[a_name]<200].copy()
+    tag_list = ["Coumarin", "Carbazole", "Cyanine", "BODIPY", "Triphenylamine", "Porphyrin", "PAHs","Acridines", "5p6", "6p6", "5n6", "6n6", "Benz" ]
+    # 200-400nm
+    df1 = df[df[a_name]<400].copy()
+    for t in tag_list:
+        df11 = df1[df.tag_name == t]
+        if len(df11) < 50:
+            print("<400nm ",t," not enough (less than 50)")
+            #continue
+        if len(df11) < 1:
+            print("<400nm ",t," not enough (less than 1)")
+            continue
+        n_samples=int(0.2*len(df11)/3)+1
+        print(f"{t} has {n_samples}")
+        sc_test_df = pd.concat([sc_test_df, df11.sample(n_samples)])
+        
+    # 400-600nm
+    df1 = df[(df[a_name]>=400) &(df[a_name]<=600)].copy()
+    for t in tag_list:
+        df11 = df1[df.tag_name == t]
+        if len(df11) < 50:
+            print("400-600nm ",t," not enough (less than 50)")
+            #continue
+        if len(df11) < 1:
+            print("400-600nm ",t," not enough (less than 1)")
+            continue
+        n_samples=int(0.2*len(df11)/3)+1
+        print(f"{t} has {n_samples}")
+        sc_test_df = pd.concat([sc_test_df, df11.sample(n_samples)])
+        
+    # 600-1000nm
+    df1 = df[df[a_name]>600].copy()
+    for t in tag_list:
+        df11 = df1[df.tag_name == t]
+        if len(df11) < 50:
+            print(">600nm ",t," not enough (less than 50)")
+            #continue
+        if len(df11) < 1:
+            print(">600nm ",t," not enough (less than 1)")
+            continue
+        n_samples=int(0.2*len(df11)/3)+1
+        print(f"{t} has {n_samples}")
+        sc_test_df = pd.concat([sc_test_df, df11.sample(n_samples)])
+    sc_test_df['split'] = 'sc'
+    df = df.drop(sc_test_df.index)
+    
+    lnum = tnum - len(sc_test_df)
+
+    ran_test_df = df.sample(n=lnum//2)
+    ran_test_df['split'] = 'ran'
+    df = df.drop(ran_test_df.index)
     
     sol_test_df = df[df[a_name]<200].copy()
     for smi, sdf in df.sample(frac=0.5).groupby(['smiles']):
-        if len(sol_test_df) > tnum//3:
+        if len(sol_test_df) > lnum//2:
             break
         if len(sdf) > 3:
             sol_test_df = pd.concat([sol_test_df, sdf])
     sol_test_df['split'] = 'sol'
     df = df.drop(sol_test_df.index)
-                
-    sc_test_df = df[df[a_name]<200].copy()
-    tag_list = ["Coumarin", "Carbazole", "Cyanine", "BODIPY", "Triphenylamine", "Porphyrin", "PAHs",
-                "Acridines", "5p6", "6p6", "5n6", "6n6", "Benz" ]
-    # -400nm
-    df1 = df[df[a_name]<400].copy()
-    for t in tag_list:
-        df11 = df1[df.tag_name == t]
-        if len(df11) < 50:
-            print("<200nm ",t," not enough.")
-            continue
-        sc_test_df = pd.concat([sc_test_df, df11.sample(n=5)])
-    # 400-600nm
-    df1 = df[(df[a_name]>400) &(df[a_name]<600)]
-    for t in tag_list:
-        df11 = df1[df.tag_name == t]
-        if len(df11) < 50:
-            print("400-600nm ",t," not enough.")
-            continue
-        sc_test_df = pd.concat([sc_test_df, df11.sample(n=5)])
-    # 600- nm
-    df1 = df[df[a_name]>600].copy()
-    for t in tag_list:
-        df11 = df1[df.tag_name == t]
-        if len(df11) < 50:
-            print(">600nm ",t," not enough.")
-            continue
-        sc_test_df = pd.concat([sc_test_df, df11.sample(n=5)])
-        
-    sc_test_df['split'] = 'sc'
-    df = df.drop(sc_test_df.index)
     
-    ran_test_df = df.sample(n=tnum//3)
-    ran_test_df['split'] = 'ran'
-    df = df.drop(ran_test_df.index)
     test_df = pd.concat([sol_test_df, sc_test_df, ran_test_df])
-#     test_df = pd.concat([sol_test_df, ran_test_df])
     print('sample ', len(sol_test_df)+len(sc_test_df)+len(ran_test_df), ' data for test, tnum=', tnum)
-#     print('sample ', len(sol_test_df)+len(ran_test_df), ' data for test, tnum=', tnum)
-#     test_df = pd.read_csv('data/0303Data/ae_test.csv').set_index('Unnamed: 0')
-#     df = df.set_index('Unnamed: 0')
-#     df = df.drop(test_df.index)
-
-    train_df = df.sample(frac=0.88)
+    
+    train_df = df.sample(frac=7/8)
     valid_df = df.drop(train_df.index)
 
     df1 = df[df[a_name]<200].copy()
@@ -1380,15 +1393,15 @@ def get_ae_data(path='data/ZJUFluoDB.csv', smp=0):
     print('absorbtion and emission Dataset has been made.')
     return train_df, valid_df, train_df1, valid_df1, test_df
 
-def get_pe_data(path='data/ZJUFluoDB.csv', smp=0):
+def get_pe_data(path='data/FluoDB.csv', smp=0):
     print('Loading ', path)
     df = pd.read_csv(path)
+    a_name = 'absorption/nm'
     p_name = 'plqy'
     e_name = 'e/m-1cm-1'
     
     print('Processing ',len(df), ' data.')
-    # filter data
-#     df = df[~(df.source =='ChemDataExtractor')]
+
     df = df[df[p_name]>0]
     df = df[df[e_name]>0]
     df[e_name] = np.log10(df[e_name])
@@ -1402,40 +1415,89 @@ def get_pe_data(path='data/ZJUFluoDB.csv', smp=0):
     
     print(len(df), ' after process, Split data and make dataset.')
     
-#     preserve 1% as test set
-    tnum = int(len(df)*0.01)
+#     preserve 20% as test set
+    tnum = int(len(df)*0.2)
     
-    sol_test_df = df[df[p_name]<0].copy()
+    sc_test_df = df[df[a_name]<200].copy()
+    tag_list = ["Coumarin", "Carbazole", "Cyanine", "BODIPY", "Triphenylamine", "Porphyrin", "PAHs","Acridines", "5p6", "6p6", "5n6", "6n6", "Benz" ]
+    # 200-400nm
+    df1 = df[df[a_name]<400].copy()
+    for t in tag_list:
+        df11 = df1[df.tag_name == t]
+        if len(df11) < 50:
+            print("<400nm ",t," not enough (less than 50)")
+            #continue
+        if len(df11) < 1:
+            print("<400nm ",t," not enough (less than 1)")
+            continue
+        n_samples=int(0.2*len(df11)/3)+1
+        print(f"{t} has {n_samples}")
+        sc_test_df = pd.concat([sc_test_df, df11.sample(n_samples)])
+        
+    # 400-600nm
+    df1 = df[(df[a_name]>=400) &(df[a_name]<=600)].copy()
+    for t in tag_list:
+        df11 = df1[df.tag_name == t]
+        if len(df11) < 50:
+            print("400-600nm ",t," not enough (less than 50)")
+            #continue
+        if len(df11) < 1:
+            print("400-600nm ",t," not enough (less than 1)")
+            continue
+        n_samples=int(0.2*len(df11)/3)+1
+        print(f"{t} has {n_samples}")
+        sc_test_df = pd.concat([sc_test_df, df11.sample(n_samples)])
+        
+    # 600-1000nm
+    df1 = df[df[a_name]>600].copy()
+    for t in tag_list:
+        df11 = df1[df.tag_name == t]
+        if len(df11) < 50:
+            print(">600nm ",t," not enough (less than 50)")
+            #continue
+        if len(df11) < 1:
+            print(">600nm ",t," not enough (less than 1)")
+            continue
+        n_samples=int(0.2*len(df11)/3)+1
+        print(f"{t} has {n_samples}")
+        sc_test_df = pd.concat([sc_test_df, df11.sample(n_samples)])
+    sc_test_df['split'] = 'sc'
+    df = df.drop(sc_test_df.index)
+    
+    lnum = tnum - len(sc_test_df)
+    
+    ran_test_df = df.sample(n=lnum//2)
+    ran_test_df['split'] = 'ran'
+    df = df.drop(ran_test_df.index)
+    
+    sol_test_df = df[df[a_name]<200].copy()
     for smi, sdf in df.sample(frac=0.5).groupby(['smiles']):
-        if len(sol_test_df) > tnum//2:
+        if len(sol_test_df) > lnum//2:
             break
         if len(sdf) > 3:
             sol_test_df = pd.concat([sol_test_df, sdf])
     sol_test_df['split'] = 'sol'
     df = df.drop(sol_test_df.index)
     
-    ran_test_df = df.sample(n=tnum//2)
-    ran_test_df['split'] = 'ran'
-    df = df.drop(ran_test_df.index)
-    test_df = pd.concat([sol_test_df, ran_test_df])
-    print('sample ', len(sol_test_df)+len(ran_test_df), ' data for test, tnum=', tnum)
-
-    train_df = df.sample(frac=0.88)
+    test_df = pd.concat([sol_test_df, sc_test_df, ran_test_df])
+    print('sample ', len(sol_test_df)+len(sc_test_df)+len(ran_test_df), ' data for test, tnum=', tnum)
+    
+    train_df = df.sample(frac=7/8)
     valid_df = df.drop(train_df.index)
 
-    df1 = df[df[p_name]<0].copy()
+    df1 = df[df[a_name]<200].copy()
     for smi, sdf in train_df.groupby(['smiles']):
         if len(sdf) > 3:
             df1 = pd.concat([df1, sdf])
     df1 = pd.concat([df1, train_df.sample(n=len(df1))])
     train_df1 = df1.copy()
     
-    df1 = df[df[p_name]<0].copy()
+    df1 = df[df[a_name]<200].copy()
     for smi, sdf in valid_df.groupby(['smiles']):
         if len(sdf) > 3:
             df1 = pd.concat([df1, sdf])
     df1 = pd.concat([df1, valid_df.sample(n=len(df1))])
     valid_df1 = df1.copy()
 
-    print('absorbtion and emission Dataset has been made.')
+    print('plqy and epsilon Dataset has been made.')
     return train_df, valid_df, train_df1, valid_df1, test_df
