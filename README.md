@@ -140,7 +140,7 @@ PLQY(\%) = \frac{PLQY_{pred}}{100}\\
 $$
 
 $$
-\Epsilon(M^{-1}cm^{-1}) = 10^{\frac{\Epsilon_{pred}}{100}}\\
+Epsilon(M^{-1}cm^{-1}) = 10^{\frac{\Epsilon_{pred}}{100}}\\
 $$
 
 
