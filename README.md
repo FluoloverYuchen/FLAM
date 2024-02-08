@@ -80,8 +80,8 @@ These example datasets could be found in data/train_data:
 
 ```
 # Load model
-from model import SAFLU_AE
-model = SAFLU_AE()
+from model import FLAM_AE
+model = FLAM_AE()
 model.load('model/FLAM/FLAM_AE.h5')
 
 # Load data
