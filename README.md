@@ -107,7 +107,7 @@ train_data = get_ae_dataset(train_df)
 valid_df = pd.read_csv('data/train_data/ae_valid.csv')
 valid_data = get_ae_dataset(valid_df)
 # train model
-model.train(train_dataset, valid_dataset, epoch=200)
+model.train(train_data, valid_data, epoch=200)
 # show train plot
 model.show_his()
 # save model
